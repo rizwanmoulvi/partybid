@@ -23,7 +23,7 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
 
-    const privyUserId = verifiedClaims.userId;
+    const privyUserId = verifiedClaims.user_id;
 
     const client = await clientPromise;
     const db = client.db();
@@ -43,16 +43,46 @@ export async function GET(req, { params }) {
       }
     }
 
-    // Fetch requests sorted by createdAt ascending
+    // Fetch eligible requests for the queue (REQUESTED), the currently PLAYING request, and history (PLAYED, SKIPPED)
     const requests = await db.collection('song_requests')
-      .find({ partyId })
-      .sort({ createdAt: 1 })
+      .find({ partyId, status: { $in: ['REQUESTED', 'PLAYING', 'PLAYED', 'SKIPPED'] } })
       .toArray();
 
-    // Map `_id` out so we don't expose mongo internal _id
-    const sanitizedRequests = requests.map(({ _id, ...rest }) => rest);
+    // Fetch active bids for this party
+    const activeBids = await db.collection('bids')
+      .find({ partyId, status: 'ACTIVE' })
+      .toArray();
 
-    return NextResponse.json({ requests: sanitizedRequests }, { status: 200 });
+    // Map active bids to requests
+    const bidMap = new Map();
+    for (const bid of activeBids) {
+      // Assuming one active bid per request based on our unique index constraints
+      bidMap.set(bid.songRequestId, bid.amount);
+    }
+
+    const requestsWithBids = requests.map(({ _id, ...rest }) => ({
+      ...rest,
+      activeBidAmount: bidMap.get(rest.id) || null
+    }));
+
+    // Separate PLAYING, history from REQUESTED
+    const playingRequest = requestsWithBids.find(r => r.status === 'PLAYING') || null;
+    const requestedOnly = requestsWithBids.filter(r => r.status === 'REQUESTED');
+    
+    // Sort PLAYED and SKIPPED by updatedAt descending (most recently updated first)
+    const pastHistory = requestsWithBids
+      .filter(r => r.status === 'PLAYED' || r.status === 'SKIPPED')
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    // Import and use our canonical queue sorter for the requested items
+    const { sortRequests } = await import('@/lib/queue');
+    const sortedQueue = sortRequests(requestedOnly);
+
+    return NextResponse.json({ 
+      requests: sortedQueue, 
+      playing: playingRequest,
+      played: pastHistory
+    }, { status: 200 });
   } catch (error) {
     console.error('Error fetching requests:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -79,7 +109,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
 
-    const privyUserId = verifiedClaims.userId;
+    const privyUserId = verifiedClaims.user_id;
 
     // Parse Body
     let body;

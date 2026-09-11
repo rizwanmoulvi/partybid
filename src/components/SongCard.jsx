@@ -2,11 +2,16 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
 
-export function SongCard({ song, isCurrent = false }) {
+export function SongCard({ song, isCurrent = false, queuePosition = null }) {
   const imageSource = song.artworkUrl || song.coverUrl;
 
   return (
-    <Card className="flex items-center gap-4 p-4 hover:bg-surface-elevated transition-colors cursor-pointer border-border">
+    <Card className="flex items-center gap-4 p-4 hover:bg-surface-elevated transition-colors cursor-pointer border-border relative">
+      {queuePosition !== null && (
+        <div className="absolute -left-3 -top-3 w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-sm shadow-md border-2 border-background z-10">
+          {queuePosition}
+        </div>
+      )}
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-elevated">
         {imageSource ? (
           <img src={imageSource} alt={song.title} className="h-full w-full object-cover" />

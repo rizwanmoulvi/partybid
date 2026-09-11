@@ -25,7 +25,7 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
 
-    const privyUserId = verifiedClaims.userId;
+    const privyUserId = verifiedClaims.user_id;
 
     const client = await clientPromise;
     const db = client.db();

@@ -28,6 +28,32 @@ async function initDb() {
     );
     console.log('Party members index created.');
 
+    // 3. Create unique compound index for bids collection
+    console.log('Creating index for bids collection...');
+    await db.collection('bids').createIndex(
+      { partyId: 1, songRequestId: 1, userId: 1 },
+      { unique: true }
+    );
+    console.log('Bids index created.');
+
+    // 4. Create unique compound index for votes collection
+    console.log('Creating index for votes collection...');
+    await db.collection('votes').createIndex(
+      { partyId: 1, songRequestId: 1, userId: 1 },
+      { unique: true }
+    );
+    console.log('Votes index created.');
+
+    // 5. Create unique index for settlements collection
+    console.log('Creating index for settlements collection...');
+    await db.collection('settlements').createIndex(
+      { partyId: 1, songRequestId: 1 },
+      { unique: true }
+    );
+    console.log('Settlements index created.');
+
+    console.log('Database initialization complete.');
+
   } catch (error) {
     console.error('Error initializing database:', error);
   } finally {
