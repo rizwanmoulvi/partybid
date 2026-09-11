@@ -11,16 +11,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 export default function JoinPartyPage() {
   const [partyId, setPartyId] = useState("");
   const router = useRouter();
-  const { authenticated, login } = usePrivy();
 
   const handleJoin = (e) => {
     e.preventDefault();
     if (!partyId.trim()) return;
-    
-    if (!authenticated) {
-      login();
-      return;
-    }
     
     router.push(`/p/${partyId.toUpperCase()}`);
   };
