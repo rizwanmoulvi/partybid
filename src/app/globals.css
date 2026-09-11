@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  
+  --color-surface-elevated: var(--surface-elevated);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  :root {
+    --background: #09090b;
+    --foreground: #fafafa;
+    
+    --surface: #121214;
+    --surface-foreground: #fafafa;
+    
+    --surface-elevated: #1a1a1d;
+    
+    --primary: #fafafa;
+    --primary-foreground: #09090b;
+    
+    --secondary: #27272a;
+    --secondary-foreground: #fafafa;
+    
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    
+    --accent: #00d395;
+    --accent-foreground: #000000;
+    
+    --destructive: #ef4444;
+    --destructive-foreground: #fafafa;
+    
+    --success: #10b981;
+    --success-foreground: #fafafa;
+    
+    --border: #27272a;
+    --ring: #00d395;
+    
+    --radius: 1rem;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+  }
+}

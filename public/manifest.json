@@ -1,0 +1,22 @@
+{
+  "name": "PartyBid",
+  "short_name": "PartyBid",
+  "description": "Turn your song request into a live party bid. Get it played. Let the crowd decide.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#00d395",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
