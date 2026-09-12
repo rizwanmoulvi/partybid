@@ -1,1 +1,0 @@
-sed -i '' -e 's/const chainId = parseInt(activeWallet.chainId.split(":")[1]);/const rawChainId = String(activeWallet.chainId || "");\n      const chainId = parseInt(rawChainId.includes(":") ? rawChainId.split(":")[1] : rawChainId);/g' src/components/profile/SendWusdcModal.jsx src/components/CommitModal.jsx src/components/SettlementExecuteButton.jsx
