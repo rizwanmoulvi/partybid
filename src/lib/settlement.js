@@ -41,19 +41,16 @@ export async function createSettlementForRequest(db, partyId, requestId) {
       if (v.vote === 'LIKED') likedVotes++;
       if (v.vote === 'NOT_LIKED') notLikedVotes++;
     }
-    const totalVotes = likedVotes + notLikedVotes;
-    
-    if (totalVotes === 0) {
-      return null;
-    }
-    
-    // Simple majority; tie goes to the player
-    if (likedVotes >= notLikedVotes) {
+    // Strict majority required: ties produce NO settlement (no minimum vote count)
+    if (likedVotes > notLikedVotes) {
       outcome = 'PLAYER_PAYOUT';
       recipient = songReq.userId;
-    } else {
+    } else if (notLikedVotes > likedVotes) {
       outcome = 'PLATFORM_PAYOUT';
       recipient = 'PLATFORM';
+    } else {
+      // Tie or zero votes → no majority, no settlement yet
+      return null;
     }
   } else {
     // Neither skipped nor played, no settlement yet.

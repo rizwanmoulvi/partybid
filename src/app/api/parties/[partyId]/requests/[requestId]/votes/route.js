@@ -73,10 +73,10 @@ export async function GET(req, { params }) {
     const totalVotes = likedVotes + notLikedVotes;
     let result = null;
 
-    if (totalVotes > 0) {
-      if (likedVotes >= notLikedVotes) result = 'LIKED';
-      else result = 'NOT_LIKED';
-    }
+    // Strict majority required; tie → null
+    if (likedVotes > notLikedVotes) result = 'LIKED';
+    else if (notLikedVotes > likedVotes) result = 'NOT_LIKED';
+    // else tie → result remains null
 
     return NextResponse.json({
       totalVotes,

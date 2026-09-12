@@ -8,8 +8,12 @@ import { Button } from "@/components/ui/button";
 import { PartyHeader } from "@/components/PartyHeader";
 import { SongCard } from "@/components/SongCard";
 import { mockParty } from "@/lib/mockData";
+import { CommitModal } from "@/components/CommitModal";
+import { SettlementExecuteButton } from "@/components/SettlementExecuteButton";
+import { BidAquaModal } from "@/components/BidAquaModal";
+import { SkipReleaseButton } from "@/components/SkipReleaseButton";
 
-function PastSongCard({ partyId, request, getAccessToken }) {
+function PastSongCard({ partyId, request, getAccessToken, user, wallets }) {
   const [voteData, setVoteData] = useState(null);
   const [settlement, setSettlement] = useState(null);
   const [isVoting, setIsVoting] = useState(false);
@@ -131,20 +135,88 @@ function PastSongCard({ partyId, request, getAccessToken }) {
 
         {/* Settlement Area */}
         {request.activeBidAmount > 0 && (
-          <div className="pt-3 border-t border-border flex items-center justify-between text-sm">
+          <div className="pt-3 border-t border-border flex flex-col gap-3 text-sm">
             {settlement ? (
-              <div className="font-semibold flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></span>
-                {settlement.outcome === 'PLAYER_PAYOUT' && <span className="text-green-500">Player payout pending</span>}
-                {settlement.outcome === 'PLATFORM_PAYOUT' && <span className="text-accent">Platform payout pending</span>}
-                {settlement.outcome === 'BIDDER_RELEASE' && <span className="text-muted-foreground">Bid release pending</span>}
-              </div>
+              <>
+                {/* Completed */}
+                {settlement.status === 'COMPLETED' && (
+                  <div className="flex flex-col gap-1.5">
+                    {settlement.outcome === 'PLAYER_PAYOUT' && (
+                      <div className="flex items-center gap-2 font-semibold text-green-500">
+                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                        Crowd liked it 🎉 — {settlement.amount} WUSDC paid to requester
+                      </div>
+                    )}
+                    {settlement.outcome === 'PLATFORM_PAYOUT' && (
+                      <div className="flex items-center gap-2 font-semibold text-accent">
+                        <span className="h-2 w-2 rounded-full bg-accent" />
+                        Crowd didn't like it — {settlement.amount} WUSDC went to PartyBid
+                      </div>
+                    )}
+                    {settlement.outcome === 'BIDDER_RELEASE' && (
+                      <div className="flex items-center gap-2 font-semibold text-muted-foreground">
+                        <span className="h-2 w-2 rounded-full bg-muted-foreground" />
+                        Song skipped — {settlement.amount} WUSDC commitment released ✓
+                      </div>
+                    )}
+                    {settlement.transactionHash && (
+                      <a
+                        href={`https://explorer.testnet.arc.network/tx/${settlement.transactionHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs underline text-muted-foreground"
+                      >
+                        View transaction
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {/* Pending payout settlement — show execute button */}
+                {settlement.status === 'PENDING' && settlement.outcome !== 'BIDDER_RELEASE' && (
+                  <>
+                    <div className="flex items-center gap-2 font-semibold">
+                      <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                      {settlement.outcome === 'PLAYER_PAYOUT' && (
+                        <span className="text-green-500">Crowd liked it 🎉 — {settlement.amount} WUSDC payout ready</span>
+                      )}
+                      {settlement.outcome === 'PLATFORM_PAYOUT' && (
+                        <span className="text-accent">Crowd didn't like it — {settlement.amount} WUSDC to PartyBid</span>
+                      )}
+                    </div>
+                    <SettlementExecuteButton
+                      partyId={partyId}
+                      request={request}
+                      settlement={settlement}
+                      getAccessToken={getAccessToken}
+                      onCompleted={setSettlement}
+                    />
+                  </>
+                )}
+
+                {/* Pending skip release — show dock button */}
+                {settlement.status === 'PENDING' && settlement.outcome === 'BIDDER_RELEASE' && (
+                  <>
+                    <div className="flex items-center gap-2 font-semibold text-muted-foreground">
+                      <span className="h-2 w-2 rounded-full bg-muted-foreground" />
+                      Song skipped — release your {settlement.amount} WUSDC commitment
+                    </div>
+                    <SkipReleaseButton
+                      partyId={partyId}
+                      request={request}
+                      settlement={settlement}
+                      getAccessToken={getAccessToken}
+                      onCompleted={setSettlement}
+                    />
+                  </>
+                )}
+              </>
             ) : isSkipped || (isPlayed && voteData?.result) ? (
               <span className="text-muted-foreground italic flex items-center gap-2">
                 <Loader2 className="h-3 w-3 animate-spin" /> Finalizing settlement...
               </span>
             ) : (
-              <span className="text-muted-foreground italic">Settlement unresolved</span>
+              <span className="text-muted-foreground italic">Awaiting votes...</span>
             )}
           </div>
         )}
@@ -157,7 +229,17 @@ export default function PartyPage({ params }) {
   const { partyId } = use(params);
   const { authenticated, login, user, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
-  
+  const [showCommitModal, setShowCommitModal] = useState(false);
+  const [commitPayload, setCommitPayload] = useState(null);
+
+  useEffect(() => {
+    const handleCommit = (e) => {
+      setCommitPayload(e.detail);
+      setShowCommitModal(true);
+    };
+    window.addEventListener('commit-bid', handleCommit);
+    return () => window.removeEventListener('commit-bid', handleCommit);
+  }, []);
   const [party, setParty] = useState(null);
   const [membership, setMembership] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -179,9 +261,8 @@ export default function PartyPage({ params }) {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [currentBid, setCurrentBid] = useState(null);
   const [userBalance, setUserBalance] = useState(null);
-  const [bidAmountInput, setBidAmountInput] = useState("");
-  const [isPlacingBid, setIsPlacingBid] = useState(false);
-  const [bidError, setBidError] = useState("");
+  const [showBidModal, setShowBidModal] = useState(false);
+  const [bidModalRequest, setBidModalRequest] = useState(null);
 
   const isDJ = authenticated && user?.id && party?.djUserId && user.id === party.djUserId;
   const isMember = isDJ || (membership && membership.member);
@@ -208,11 +289,9 @@ export default function PartyPage({ params }) {
     // Only allow selecting if the user owns the request
     if (request.userId !== user?.id) return;
     
-    setSelectedRequest(request);
+    setSelectedRequest(prev => prev?.id === request.id ? null : request);
     setCurrentBid(null);
     setUserBalance(null);
-    setBidAmountInput("");
-    setBidError("");
 
     try {
       const token = await getAccessToken();
@@ -221,70 +300,24 @@ export default function PartyPage({ params }) {
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.bid) {
-          setCurrentBid(data.bid);
-          setBidAmountInput(data.bid.amount.toString());
-        }
-        if (data.balance) {
-          setUserBalance(data.balance);
-        }
+        if (data.bid) setCurrentBid(data.bid);
+        if (data.balance) setUserBalance(data.balance);
       }
     } catch (err) {
       console.error("Failed to fetch bid:", err);
     }
   };
 
-  const handlePlaceBid = async () => {
-    if (!selectedRequest || !authenticated) return;
-    
-    const amountNum = parseFloat(bidAmountInput);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      setBidError("Please enter a valid positive amount.");
-      return;
-    }
+  const handleOpenBidModal = (request) => {
+    setBidModalRequest(request);
+    setShowBidModal(true);
+  };
 
-    // Client-side affordability check (server still enforces this!)
-    if (userBalance) {
-      const existingAmount = currentBid?.amount || 0;
-      const effectiveAvailable = userBalance.availableBalance + existingAmount;
-      if (amountNum > effectiveAvailable) {
-        setBidError("Insufficient available balance.");
-        return;
-      }
-    }
-
-    setIsPlacingBid(true);
-    setBidError("");
-
-    try {
-      const token = await getAccessToken();
-      const res = await fetch(`/api/parties/${partyId}/requests/${selectedRequest.id}/bid`, {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ amount: amountNum })
-      });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to place bid");
-      
-      setCurrentBid(data.bid);
-      setBidAmountInput(data.bid.amount.toString());
-      if (data.balance) {
-        setUserBalance(data.balance);
-      }
-      
-      // Refresh the queue to show new rankings instantly
-      await fetchRequests();
-      
-    } catch (err) {
-      console.error(err);
-      setBidError(err.message);
-    } finally {
-      setIsPlacingBid(false);
-    }
+  const handleBidPlaced = async (newBid) => {
+    setCurrentBid(newBid);
+    setShowBidModal(false);
+    setBidModalRequest(null);
+    await fetchRequests();
   };
 
   const [isProcessingDJAction, setIsProcessingDJAction] = useState(false);
@@ -626,57 +659,34 @@ export default function PartyPage({ params }) {
                         
                         {isSelected && (
                           <div className="mt-2 p-4 bg-surface-elevated rounded-xl border border-border animate-in fade-in">
-                            <div className="flex justify-between items-center mb-4">
-                              <h3 className="font-semibold">Place Bid</h3>
+                            <div className="flex justify-between items-center mb-3">
+                              <h3 className="font-semibold">Your Bid</h3>
                               <Button variant="ghost" size="sm" onClick={() => setSelectedRequest(null)} className="h-8 text-muted-foreground">
                                 Cancel
                               </Button>
                             </div>
                             
-                            {userBalance && (
-                              <div className="mb-4 flex gap-4 p-3 bg-surface rounded-lg border border-border text-sm">
-                                <div className="flex-1">
-                                  <div className="text-muted-foreground text-xs uppercase font-semibold">Demo Balance</div>
-                                  <div className="font-bold">${userBalance.simulatedBalance.toFixed(2)}</div>
+                            {currentBid ? (
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="text-sm text-muted-foreground">Active bid</div>
+                                  <div className="text-lg font-bold text-accent">{currentBid.amount.toFixed(4)} WUSDC</div>
                                 </div>
-                                <div className="flex-1">
-                                  <div className="text-muted-foreground text-xs uppercase font-semibold">Committed</div>
-                                  <div className="font-bold text-accent">${userBalance.committedBalance.toFixed(2)}</div>
-                                </div>
-                                <div className="flex-1">
-                                  <div className="text-muted-foreground text-xs uppercase font-semibold">Available</div>
-                                  <div className="font-bold text-green-500">${userBalance.availableBalance.toFixed(2)}</div>
+                                <div className="text-xs text-green-500 font-semibold bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
+                                  ✓ Committed to Aqua
                                 </div>
                               </div>
-                            )}
-
-                            {currentBid && (
-                              <div className="mb-4 text-sm font-medium text-accent">
-                                Current bid: ${currentBid.amount.toFixed(2)}
-                              </div>
-                            )}
-                            
-                            <div className="flex gap-2">
-                              <div className="relative flex-1">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                                <Input 
-                                  type="number"
-                                  min="0.01"
-                                  step="0.01"
-                                  placeholder="5.00"
-                                  className="pl-7 bg-surface border-border"
-                                  value={bidAmountInput}
-                                  onChange={(e) => setBidAmountInput(e.target.value)}
-                                />
-                              </div>
-                              <Button onClick={handlePlaceBid} disabled={isPlacingBid || !bidAmountInput} className="font-semibold">
-                                {isPlacingBid ? <Loader2 className="h-4 w-4 animate-spin" /> : "Place Bid"}
-                              </Button>
-                            </div>
-                            
-                            {bidError && (
-                              <div className="mt-3 p-3 rounded-lg bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
-                                {bidError}
+                            ) : (
+                              <div className="flex flex-col gap-3">
+                                <p className="text-xs text-muted-foreground">
+                                  Committing a bid locks a virtual WUSDC position in Aqua. Your WUSDC stays in your wallet until settlement.
+                                </p>
+                                <Button
+                                  onClick={() => handleOpenBidModal(request)}
+                                  className="w-full font-bold bg-accent text-accent-foreground hover:bg-accent/90"
+                                >
+                                  Commit Bid
+                                </Button>
                               </div>
                             )}
                           </div>
@@ -700,6 +710,8 @@ export default function PartyPage({ params }) {
                       partyId={partyId} 
                       request={request} 
                       getAccessToken={getAccessToken} 
+                      user={user}
+                      wallets={wallets}
                     />
                   ))}
                 </div>
@@ -708,6 +720,23 @@ export default function PartyPage({ params }) {
           </>
         )}
       </div>
+
+      <CommitModal 
+        open={showCommitModal} 
+        onClose={() => setShowCommitModal(false)} 
+        payload={commitPayload} 
+        getAccessToken={getAccessToken} 
+      />
+
+      {showBidModal && bidModalRequest && (
+        <BidAquaModal
+          partyId={partyId}
+          request={bidModalRequest}
+          getAccessToken={getAccessToken}
+          onBidPlaced={handleBidPlaced}
+          onClose={() => { setShowBidModal(false); setBidModalRequest(null); }}
+        />
+      )}
     </div>
   );
 }

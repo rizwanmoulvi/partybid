@@ -43,9 +43,9 @@ export async function GET(req, { params }) {
       }
     }
 
-    // Fetch eligible requests for the queue (REQUESTED), the currently PLAYING request, and history (PLAYED, SKIPPED)
+    // Fetch eligible requests for the queue (REQUESTED), the currently PLAYING request, and history (PLAYED, SKIPPED, RESOLVED)
     const requests = await db.collection('song_requests')
-      .find({ partyId, status: { $in: ['REQUESTED', 'PLAYING', 'PLAYED', 'SKIPPED'] } })
+      .find({ partyId, status: { $in: ['REQUESTED', 'PLAYING', 'PLAYED', 'SKIPPED', 'RESOLVED'] } })
       .toArray();
 
     // Fetch active bids for this party
@@ -57,21 +57,26 @@ export async function GET(req, { params }) {
     const bidMap = new Map();
     for (const bid of activeBids) {
       // Assuming one active bid per request based on our unique index constraints
-      bidMap.set(bid.songRequestId, bid.amount);
+      bidMap.set(bid.songRequestId, { amount: bid.amount, userId: bid.userId, id: bid.id });
     }
 
-    const requestsWithBids = requests.map(({ _id, ...rest }) => ({
-      ...rest,
-      activeBidAmount: bidMap.get(rest.id) || null
-    }));
+    const requestsWithBids = requests.map(({ _id, ...rest }) => {
+      const bidData = bidMap.get(rest.id);
+      return {
+        ...rest,
+        activeBidAmount: bidData ? bidData.amount : null,
+        activeBidUserId: bidData ? bidData.userId : null,
+        activeBidId: bidData ? bidData.id : null
+      };
+    });
 
     // Separate PLAYING, history from REQUESTED
     const playingRequest = requestsWithBids.find(r => r.status === 'PLAYING') || null;
     const requestedOnly = requestsWithBids.filter(r => r.status === 'REQUESTED');
     
-    // Sort PLAYED and SKIPPED by updatedAt descending (most recently updated first)
+    // Sort PLAYED, SKIPPED, RESOLVED by updatedAt descending (most recently updated first)
     const pastHistory = requestsWithBids
-      .filter(r => r.status === 'PLAYED' || r.status === 'SKIPPED')
+      .filter(r => r.status === 'PLAYED' || r.status === 'SKIPPED' || r.status === 'RESOLVED')
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
     // Import and use our canonical queue sorter for the requested items
