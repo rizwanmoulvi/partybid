@@ -11,7 +11,7 @@ const AQUA_ADDRESS = '0xBf4140CD28b03479aD2F129c382b673101CF442B';
 const PARTYBID_AQUA_APP = process.env.NEXT_PUBLIC_PARTYBID_AQUA_APP || '0x2Bb9b80C0Bba2B1F50d98f72ec7dC4187ea7e071';
 
 const aquaAbi = [
-  'function dock(address app, bytes32 strategyHash) external',
+  'function dock(address app, bytes32 strategyHash, address[] calldata tokens) external',
 ];
 
 /**
@@ -96,7 +96,7 @@ export function SkipReleaseButton({ partyId, request, settlement, getAccessToken
       // Call Aqua.dock() — releases the virtual balance back to the maker
       const aqua = new ethers.Contract(AQUA_ADDRESS, aquaAbi, signer);
       setStatus('CONFIRMING');
-      const tx = await aqua.dock(PARTYBID_AQUA_APP, strategyHash);
+      const tx = await aqua.dock(PARTYBID_AQUA_APP, strategyHash, [process.env.NEXT_PUBLIC_WUSDC || '0x911b4000D3422F482F4062a913885f7b035382Df']);
       const receipt = await tx.wait();
 
       if (receipt.status !== 1) throw new Error('dock() transaction failed on chain');

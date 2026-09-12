@@ -11,7 +11,7 @@ const AQUA_ADDRESS = '0xBf4140CD28b03479aD2F129c382b673101CF442B';
 const PARTYBID_AQUA_APP = process.env.NEXT_PUBLIC_PARTYBID_AQUA_APP || '0x2Bb9b80C0Bba2B1F50d98f72ec7dC4187ea7e071';
 
 const aquaAbi = [
-  'function getBalance(address maker, address app, bytes32 strategyHash, address token) view returns (uint256)'
+  'function rawBalances(address maker, address app, bytes32 strategyHash, address token) view returns (uint248 balance, uint8 tokensCount)'
 ];
 
 export async function POST(req) {
@@ -101,7 +101,7 @@ export async function POST(req) {
       try {
         const provider = new ethers.JsonRpcProvider(ARC_RPC_URL);
         const aqua = new ethers.Contract(AQUA_ADDRESS, aquaAbi, provider);
-        const aquaBalance = await aqua.getBalance(makerWallet, PARTYBID_AQUA_APP, strategyHash, WUSDC_ADDRESS);
+        const [aquaBalance] = await aqua.rawBalances(makerWallet, PARTYBID_AQUA_APP, strategyHash, WUSDC_ADDRESS);
         const expectedWei = ethers.parseUnits(bid.amount.toString(), 18);
         if (aquaBalance < expectedWei) {
           const actualFormatted = ethers.formatUnits(aquaBalance, 18);

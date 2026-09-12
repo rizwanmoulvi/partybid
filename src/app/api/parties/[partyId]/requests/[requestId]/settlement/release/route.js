@@ -10,7 +10,7 @@ const WUSDC_ADDRESS = process.env.NEXT_PUBLIC_WUSDC || '0x911b4000D3422F482F4062
 const EXPECTED_CHAIN_ID = 5042002;
 
 const aquaAbi = [
-  'function getBalance(address maker, address app, bytes32 strategyHash, address token) view returns (uint256)',
+  'function rawBalances(address maker, address app, bytes32 strategyHash, address token) view returns (uint248 balance, uint8 tokensCount)',
 ];
 
 // SkipDock event emitted by PartyBidAquaApp when dock() is called
@@ -129,9 +129,10 @@ export async function POST(req, { params }) {
     const aqua = new ethers.Contract(AQUA_ADDRESS, aquaAbi, provider);
     let remainingBalance;
     try {
-      remainingBalance = await aqua.getBalance(makerAddress, PARTYBID_AQUA_APP, strategyHash, WUSDC_ADDRESS);
+      const [bal] = await aqua.rawBalances(makerAddress, PARTYBID_AQUA_APP, strategyHash, WUSDC_ADDRESS);
+      remainingBalance = bal;
     } catch (e) {
-      console.error('Aqua getBalance error:', e);
+      console.error('Aqua rawBalances error:', e);
       return NextResponse.json({ error: 'Bad Request: Could not verify Aqua position was cleared' }, { status: 400 });
     }
 

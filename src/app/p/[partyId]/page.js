@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PartyHeader } from "@/components/PartyHeader";
 import { SongCard } from "@/components/SongCard";
-import { mockParty } from "@/lib/mockData";
 import { CommitModal } from "@/components/CommitModal";
 import { SettlementExecuteButton } from "@/components/SettlementExecuteButton";
 import { BidAquaModal } from "@/components/BidAquaModal";
@@ -357,11 +356,7 @@ export default function PartyPage({ params }) {
           throw new Error(data.error || "Failed to load party");
         }
         
-        setParty({
-          ...data,
-          currentSong: mockParty.currentSong, // Temporarily retain mock playing song
-          peopleCount: 1
-        });
+        setParty(data);
 
         if (authenticated) {
           const token = await getAccessToken();
@@ -463,6 +458,8 @@ export default function PartyPage({ params }) {
       if (!res.ok) throw new Error(data.error || "Failed to submit request");
       
       setSelectedSong(null);
+      setSearchResults(null);
+      setSearchQuery("");
       await fetchRequests();
     } catch (err) {
       console.error(err);
@@ -498,23 +495,22 @@ export default function PartyPage({ params }) {
         <section>
           <h2 className="text-xl font-semibold mb-4 text-foreground/90">Now Playing</h2>
           {playingSong ? (
-            <div className="relative">
+            <div className="flex flex-col gap-3">
               <SongCard song={{ ...playingSong, bidAmount: playingSong.activeBidAmount }} isCurrent />
               {isDJ && (
-                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <div className="flex justify-end">
                   <Button 
                     size="sm" 
-                    variant="outline"
+                    variant="default"
                     onClick={() => handleDJAction(playingSong.id, 'played')}
                     disabled={isProcessingDJAction}
+                    className="font-semibold"
                   >
                     Mark Played
                   </Button>
                 </div>
               )}
             </div>
-          ) : party.currentSong ? (
-            <SongCard song={party.currentSong} isCurrent />
           ) : (
             <div className="p-8 text-center text-muted-foreground bg-surface rounded-xl border border-border border-dashed">
               Nothing is playing right now.
@@ -570,7 +566,11 @@ export default function PartyPage({ params }) {
                     searchResults.map((song) => (
                       <div 
                         key={song.id} 
-                        onClick={() => setSelectedSong(song)}
+                        onClick={() => {
+                          setSelectedSong(song);
+                          setSearchResults(null);
+                          setSearchQuery("");
+                        }}
                         className="cursor-pointer transition-transform active:scale-[0.98]"
                       >
                         <SongCard song={song} />
@@ -637,12 +637,13 @@ export default function PartyPage({ params }) {
                         </div>
                         
                         {isDJ && (
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="bg-surface-elevated border-t border-border p-3 flex justify-end gap-2">
                             <Button 
                               size="sm" 
                               variant="secondary" 
                               onClick={(e) => { e.stopPropagation(); handleDJAction(request.id, 'play'); }}
                               disabled={isProcessingDJAction}
+                              className="font-semibold"
                             >
                               Play
                             </Button>
@@ -651,6 +652,7 @@ export default function PartyPage({ params }) {
                               variant="destructive" 
                               onClick={(e) => { e.stopPropagation(); handleDJAction(request.id, 'skip'); }}
                               disabled={isProcessingDJAction}
+                              className="font-semibold"
                             >
                               Skip
                             </Button>

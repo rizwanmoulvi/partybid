@@ -129,16 +129,17 @@ export async function POST(req, { params }) {
 
     // --- VERIFY AQUA VIRTUAL BALANCE ---
     const aquaAbi = [
-      'function getBalance(address maker, address app, bytes32 strategyHash, address token) view returns (uint256)'
+      'function rawBalances(address maker, address app, bytes32 strategyHash, address token) view returns (uint248 balance, uint8 tokensCount)'
     ];
     const aqua = new ethers.Contract(AQUA_ADDRESS, aquaAbi, provider);
     const PARTYBID_AQUA_APP = process.env.NEXT_PUBLIC_PARTYBID_AQUA_APP || '0x2Bb9b80C0Bba2B1F50d98f72ec7dC4187ea7e071';
 
     let aquaBalance;
     try {
-      aquaBalance = await aqua.getBalance(makerAddress, PARTYBID_AQUA_APP, expectedStrategyHash, WUSDC_ADDRESS);
+      const [bal] = await aqua.rawBalances(makerAddress, PARTYBID_AQUA_APP, expectedStrategyHash, WUSDC_ADDRESS);
+      aquaBalance = bal;
     } catch (e) {
-      console.error('Aqua getBalance error:', e);
+      console.error('Aqua rawBalances error:', e);
       return NextResponse.json({ error: 'Bad Request: Could not verify Aqua virtual balance' }, { status: 400 });
     }
 

@@ -1,9 +1,14 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
 import { Disc3 } from 'lucide-react';
 import { WalletDisplay } from '@/components/WalletDisplay';
+import { usePrivy } from '@privy-io/react-auth';
 
 export function AppShell({ children }) {
+  const { authenticated } = usePrivy();
+
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background text-foreground">
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur">
@@ -13,9 +18,11 @@ export function AppShell({ children }) {
               <Disc3 className="h-6 w-6 text-accent" />
               <span className="font-bold tracking-tight">PartyBid</span>
             </Link>
-            <Link href="/profile" className="text-sm font-medium text-muted-foreground hover:text-foreground flex items-center">
-              Profile
-            </Link>
+            {authenticated && (
+              <Link href="/profile" className="text-sm font-medium text-muted-foreground hover:text-foreground flex items-center">
+                Profile
+              </Link>
+            )}
           </div>
           <WalletDisplay />
         </div>
